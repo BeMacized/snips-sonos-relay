@@ -17,7 +17,7 @@ export class SnipsSonosRelay extends Provider implements OnInit {
 
     async onInit() {
         // Verify presence of required env variables
-        for (const v of ['MQTT_HOST', 'MQTT_PORT', 'HTTP_BASE_URL', 'SNIPS_SITE_TO_SONOS_ZONE_MAP'].filter(_v => !process.env[_v])) {
+        for (const v of ['MQTT_HOST', 'HTTP_BASE_URL', 'SNIPS_SITE_TO_SONOS_ZONE_MAP'].filter(_v => !process.env[_v])) {
             this.error(`Missing environment variable ${v}. Stopping application.`);
             return process.exit(1);
         }
@@ -59,7 +59,7 @@ export class SnipsSonosRelay extends Provider implements OnInit {
             ? `tcp://${encodeURIComponent(process.env.MQTT_USERNAME)}:${encodeURIComponent(process.env.MQTT_PASSWORD)}@${
                   process.env.MQTT_HOST
               }:${process.env.MQTT_PASSWORD}`
-            : `tcp://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`;
+            : `tcp://${process.env.MQTT_HOST}:${process.env.MQTT_PORT || 1883}`;
         try {
             this.mqtt = await MQTT.connectAsync(mqttUrl, {});
         } catch (e) {
