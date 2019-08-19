@@ -84,6 +84,7 @@ export class SnipsSonosRelay extends Provider implements OnInit {
             this.error('Could not find any Sonos devices on your network', e);
             return process.exit(1);
         }
+        this.info(`Discovered ${devices.length} Sonos devices. Gathering device info...`);
         // Transform results
         this.sonos = await Promise.all(devices.map(device => device.getName().then(name => ({ device, name })))).then(_devices => {
             return Object.entries(_.groupBy(_devices, 'name')).reduce((acc: any, e: any) => {
