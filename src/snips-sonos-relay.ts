@@ -17,7 +17,7 @@ export class SnipsSonosRelay extends Provider implements OnInit {
 
     async onInit() {
         // Verify presence of required env variables
-        for (const v of ['MQTT_HOST', 'HTTP_BASE_URL', 'SNIPS_SITE_TO_SONOS_ZONE_MAP'].filter(_v => !process.env[_v])) {
+        for (const v of ['MQTT_HOST', 'HTTP_HOST', 'SNIPS_SITE_TO_SONOS_ZONE_MAP'].filter(_v => !process.env[_v])) {
             this.error(`Missing environment variable ${v}. Stopping application.`);
             return process.exit(1);
         }
@@ -46,7 +46,7 @@ export class SnipsSonosRelay extends Provider implements OnInit {
         // Start express server
         this.info('Setting up HTTP server...');
         this.expressApp = express();
-        const expressPort: number = parseInt(process.env.HTTP_PORT || '80', 10);
+        const expressPort: number = parseInt(process.env.HTTP_PORT || '8080', 10);
         this.expressApp.use(bodyParser.urlencoded({ extended: true }));
         this.expressApp.get('/audio/:id', this._handleAudioHttpRequest);
         this.expressApp.listen(expressPort, () => this.info(`HTTP server now listening on port ${expressPort}`));
@@ -77,12 +77,13 @@ export class SnipsSonosRelay extends Provider implements OnInit {
     _initSonos = async () => {
         // Discover Sonos speakers
         this.info(`Discovering Sonos devices... (${process.env.SONOS_SCAN_WINDOW || 10000}ms)`);
-        const devices: any[] = await new SonosDiscovery().discoverMultiple({ timeout: process.env.SONOS_SCAN_WINDOW || 10000 });
-        if (!devices.length) {
-            this.error('Could not find any Sonos devices on your network');
+        let devices: any[];
+        try {
+            devices = await new SonosDiscovery().discoverMultiple({ timeout: process.env.SONOS_SCAN_WINDOW || 10000 });
+        } catch (e) {
+            this.error('Could not find any Sonos devices on your network', e);
             return process.exit(1);
         }
-        this.info(`Discovered ${devices.length} Sonos devices. Gathering device info...`);
         // Transform results
         this.sonos = await Promise.all(devices.map(device => device.getName().then(name => ({ device, name })))).then(_devices => {
             return Object.entries(_.groupBy(_devices, 'name')).reduce((acc: any, e: any) => {
@@ -129,7 +130,7 @@ export class SnipsSonosRelay extends Provider implements OnInit {
         for (const device of devices) {
             this.debug('Playing notification on ' + (await device.getName()));
             const notification = {
-                uri: `http://${process.env.HTTP_BASE_URL}/audio/${playId}`,
+                uri: `http://${process.env.HTTP_HOST}:${process.env.HTTP_PORT || 8080}/audio/${playId}`,
                 onlyWhenPlaying: false,
                 volume: parseInt(process.env.SONOS_VOLUME, 10) || 30
             };
