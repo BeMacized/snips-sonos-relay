@@ -24,12 +24,17 @@
         "express": "^4.17.1",
         "injection-js": "^2.2.2",
         "lodash": "^4.17.15",
+        "music-metadata": "^4.3.1",
+        "p-queue": "^6.1.1",
+        "p-timeout": "^3.1.0",
         "reflect-metadata": "^0.1.13",
         "rxjs": "^6.5.2",
+        "sleep-promise": "^8.0.1",
         "sonos": "^1.12.2",
         "winston": "^3.2.1"
     },
     "devDependencies": {
+        "@types/express": "^4.17.1",
         "@types/node": "^12.7.2",
         "copy-webpack-plugin": "^5.0.4",
         "prettier": "^1.18.2",

@@ -13,4 +13,9 @@ export abstract class Provider {
     error = (...value: any[]) => {
         winston.error(`[${this.constructor.name}] ` + value.map(v => v.toString()).join(' '));
     };
+
+}
+
+export interface OnInit {
+    onInit(): Promise<any>;
 }
