@@ -28,7 +28,12 @@ export class SonosRoom extends Provider {
         // Take snapshots
         this.snapshots = await Promise.all(this.devices.map(d => SonosDeviceSnapshot.take(d)));
         // Stop playing
-        await Promise.all(this.devices.map(async d => d.pause()));
+        await Promise.all(
+            this.snapshots
+                .filter(s => s.isPlaying)
+                .map(s => s.device)
+                .map(async d => d.pause())
+        ).catch(_ => {});
         // Process queue
         while (this.notificationQueue.length) {
             const notification = this.notificationQueue.splice(0, 1)[0];
@@ -37,7 +42,7 @@ export class SonosRoom extends Provider {
         }
         await sleep(250);
         // Restore snapshots
-        await Promise.all(this.snapshots.map((snapshot, index) => snapshot.restore(this.devices[index])));
+        await Promise.all(this.snapshots.map(snapshot => snapshot.restore()));
         this.snapshots = null;
         // Release queue lock
         this.processing = false;
@@ -47,22 +52,26 @@ export class SonosRoom extends Provider {
         // Start playing
         await Promise.all(
             this.devices.map(async device => {
-                // Set volume
-                await device.setVolume(notification.volume);
-                // Set stream
-                await device.setAVTransportURI({
-                    uri: notification.uri,
-                    metadata: SonosHelpers.GenerateMetadata(notification.uri).metadata
-                });
-                // Await end of stream
-                await promiseTimeout(
-                    new Promise((resolve, reject) => {
-                        device.once('PlaybackStopped', m => {
-                            resolve(m);
-                        });
-                    }),
-                    notification.length + 250,
-                ).catch(_ => console.log('woops timed out'));
+                try {
+                    // Set volume
+                    await device.setVolume(notification.volume);
+                    // Set stream
+                    await device.setAVTransportURI({
+                        uri: notification.uri,
+                        metadata: SonosHelpers.GenerateMetadata(notification.uri).metadata
+                    });
+                    // Await end of stream
+                    await promiseTimeout(
+                        new Promise((resolve, reject) => {
+                            device.once('PlaybackStopped', m => {
+                                resolve(m);
+                            });
+                        }),
+                        notification.length + 1000
+                    ).catch(_ => console.log('woops timed out'));
+                } catch (e) {
+                    this.error(e);
+                }
             })
         );
     }

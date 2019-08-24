@@ -2,9 +2,9 @@ import 'reflect-metadata';
 import { ReflectiveInjector, Injectable, Provider } from 'injection-js';
 import * as winston from 'winston';
 import dotenv from 'dotenv';
-import {SonosService} from "./services/sonos/sonos.service";
-import {SnipsService} from "./services/snips/snips.service";
-import {AudioCacheService} from "./services/audio-cache/audio-cache.service";
+import { SonosService } from './services/sonos/sonos.service';
+import { SnipsService } from './services/snips/snips.service';
+import { AudioCacheService } from './services/audio-cache/audio-cache.service';
 
 // Configure dotenv
 dotenv.config();
@@ -29,7 +29,7 @@ winston.configure({
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', error => winston.warn('unhandledRejection ' + error));
+process.on('unhandledRejection', (error: any) => winston.warn('unhandledRejection ' + error + '\n' + error.stack));
 
 // Define providers
 const providers = [SonosService, AudioCacheService, SnipsService] as Provider[];
