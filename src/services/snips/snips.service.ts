@@ -8,6 +8,7 @@ import { SonosAudio } from '../sonos/sonos-audio';
 import sleep = require('sleep-promise');
 
 const TOPIC_HOTWORD_DETECTED = 'hermes/hotword/default/detected';
+const TOPIC_SESSION_START = 'hermes/dialogueManager/startSession';
 const TOPIC_HOTWORD_READY = 'hermes/hotword/toggleOn';
 
 @Injectable()
@@ -54,6 +55,7 @@ export class SnipsService extends Provider {
         await this.mqtt.subscribe('hermes/audioServer/+/playBytes/#');
         await this.mqtt.subscribe(TOPIC_HOTWORD_DETECTED);
         await this.mqtt.subscribe(TOPIC_HOTWORD_READY);
+        await this.mqtt.subscribe(TOPIC_SESSION_START);
         // Register MQTT events
         this.mqtt.on('error', this._onMQTTError);
         this.mqtt.on('message', this._onMQTTMessage);
@@ -66,6 +68,7 @@ export class SnipsService extends Provider {
     _onMQTTMessage = async (topic: string, message: Buffer) => {
         if (topic === TOPIC_HOTWORD_DETECTED) return this._handleHotwordDetected(JSON.parse(message.toString('utf8')).siteId);
         if (topic === TOPIC_HOTWORD_READY) return this._handleHotwordReady(JSON.parse(message.toString('utf8')).siteId);
+        if (topic === TOPIC_SESSION_START) return this._handleHotwordDetected(JSON.parse(message.toString('utf8')).siteId);
         const myRegexp = /hermes\/audioServer\/(.*)?\/playBytes\/(.*)/g;
         const match = myRegexp.exec(topic);
         if (match) return this._handleAudio(match[1], match[2], message);
