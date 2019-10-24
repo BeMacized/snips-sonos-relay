@@ -11,6 +11,8 @@ export class SonosRoom extends Provider {
     private snapshots: SonosDeviceSnapshot[];
     private currentAudio$: BehaviorSubject<SonosAudio> = new BehaviorSubject<SonosAudio>(null);
     private frozen$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+    private freezing$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+    private thawing$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
 
     get frozen(): boolean {
         return this.frozen$.value;
@@ -22,6 +24,7 @@ export class SonosRoom extends Provider {
 
     async freeze() {
         if (this.frozen) return this.error('Cannot freeze already frozen room');
+        this.freezing$.next(true);
         // Take snapshots
         this.snapshots = await Promise.all(this.devices.map(d => SonosDeviceSnapshot.take(d)));
         // Pause devices
@@ -34,10 +37,12 @@ export class SonosRoom extends Provider {
         ).catch(_ => {});
         // Set frozen flag
         this.frozen$.next(true);
+        this.freezing$.next(false);
     }
 
     async thaw() {
         if (!this.frozen) return this.error('Cannot thaw room that is not frozen');
+        this.thawing$.next(true);
         // Wait for audio to finish
         await this.currentAudio$
             .pipe(
@@ -50,43 +55,46 @@ export class SonosRoom extends Provider {
         this.snapshots = null;
         // Remove frozen flag
         this.frozen$.next(false);
+        this.thawing$.next(false);
     }
 
     async playAudio(audio: SonosAudio) {
-        // Wait for freeze
-        await this.frozen$
-            .pipe(
-                filter(f => f),
-                take(1)
-            )
-            .toPromise();
+        const manualFreeze = !this.freezing$.value && !this.frozen$.value;
+        if (manualFreeze) await this.freeze();
+        else
+            await this.frozen$
+                .pipe(
+                    filter(f => f),
+                    take(1)
+                )
+                .toPromise();
         // Finish current audio prematurely
         if (this.currentAudio$.value) this.currentAudio$.value.finish(true);
         // Set as current audio
         this.currentAudio$.next(audio);
         // Start control of sonos devices
-        for (const device of this.devices) {
-            // Set volume
-            if (audio.volume) await device.setVolume(audio.volume);
-            // Set stream
-            await device.setAVTransportURI({
-                uri: audio.uri,
-                metadata: SonosHelpers.GenerateMetadata(audio.uri).metadata
-            });
-            // Await end of stream
-            promiseTimeout(
-                new Promise((resolve, reject) => {
-                    device.once('PlaybackStopped', m => {
-                        resolve(m);
-                    });
-                }),
-                audio.length + 1000
-            )
-                .catch(() => {})
-                .finally(() => {
-                    audio.finish(false);
-                    this.currentAudio$.next(null);
+        await Promise.all(
+            this.devices.map(async device => {
+                // Set volume
+                if (audio.volume) await device.setVolume(audio.volume);
+                // Set stream
+                await device.setAVTransportURI({
+                    uri: audio.uri,
+                    metadata: SonosHelpers.GenerateMetadata(audio.uri).metadata
                 });
-        }
+                // Await end of stream
+                return promiseTimeout(
+                    new Promise((resolve, reject) => {
+                        device.once('PlaybackStopped', m => {
+                            resolve(m);
+                        });
+                    }),
+                    audio.length + 1000
+                ).catch(() => {});
+            })
+        );
+        // Mark finished
+        audio.finish(false);
+        this.currentAudio$.next(null);
     }
 }

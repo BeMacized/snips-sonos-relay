@@ -69,9 +69,11 @@ export class SnipsService extends Provider {
         if (topic === TOPIC_HOTWORD_DETECTED) return this._handleHotwordDetected(JSON.parse(message.toString('utf8')).siteId);
         if (topic === TOPIC_HOTWORD_READY) return this._handleHotwordReady(JSON.parse(message.toString('utf8')).siteId);
         if (topic === TOPIC_SESSION_START) return this._handleHotwordDetected(JSON.parse(message.toString('utf8')).siteId);
-        const myRegexp = /hermes\/audioServer\/(.*)?\/playBytes\/(.*)/g;
-        const match = myRegexp.exec(topic);
-        if (match) return this._handleAudio(match[1], match[2], message);
+        {
+            const myRegexp = /hermes\/audioServer\/(.*)?\/playBytes\/(.*)/g;
+            const match = myRegexp.exec(topic);
+            if (match) return this._handleAudio(match[1], match[2], false, message);
+        }
         this.warn('Unknown message on topic', topic);
     };
 
@@ -92,7 +94,7 @@ export class SnipsService extends Provider {
         if (room.frozen) await room.thaw();
     };
 
-    _handleAudio = async (siteId: string, playId: string, audio: Buffer) => {
+    _handleAudio = async (siteId: string, playId: string, manual: boolean, audio: Buffer) => {
         this.info('AUDIO', siteId);
         // Get sonos room
         const room = this._getSonosRoomForSiteId(siteId);
@@ -102,18 +104,7 @@ export class SnipsService extends Provider {
         // Figure out length of audio
         const length = Math.ceil((await mm.parseBuffer(audio, 'audio/wav')).format.duration * 1000);
         // Play audio
-        const sonosAudio = new SonosAudio(uri, length, parseInt(process.env.SONOS_VOLUME, 10) || 30, cancelled => {
-            // For later, if I end up replacing snips-audio-server altogether
-            // if (!cancelled) {
-            //     this.mqtt.publish(
-            //         'hermes/audioServer/' + siteId + '/playFinished',
-            //         JSON.stringify({
-            //             id: playId,
-            //             siteId
-            //         })
-            //     );
-            // }
-        });
+        const sonosAudio = new SonosAudio(uri, length, parseInt(process.env.SONOS_VOLUME, 10) || 30, cancelled => {});
         await room.playAudio(sonosAudio);
     };
 
