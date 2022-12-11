@@ -21,7 +21,7 @@
         "async-mqtt": "^2.4.2",
         "body-parser": "^1.19.0",
         "dotenv": "^8.0.0",
-        "express": "^4.17.1",
+        "express": "^4.17.3",
         "injection-js": "^2.2.2",
         "lodash": "^4.17.15",
         "music-metadata": "^4.3.1",
